@@ -26,7 +26,7 @@ jobs:
 
     - name: Deploy application
       run: |
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' << 'EOF'
+        ssh ${{ variables.SSH_USER }}@${{ variables.SSH_HOST }} 'bash -s' << 'EOF'
         cd /var/www/${{ secrets.DEPLOY_PATH }} || exit
         git pull origin staging
         sudo docker compose down --rmi all
