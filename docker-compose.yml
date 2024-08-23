@@ -31,17 +31,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-  nginx-proxy:
-    build:
-      context: .
-      dockerfile: Dockerfile_nginx
+  reverse-proxy:
+    image: bh42/nginx-reverseproxy-letsencrypt:latest
     container_name: nginx-proxy
+    environment:
+      - KEYLENGTH=ec-384
+      - EMAIL=your-email@example.com
+      - DHPARAM=4096
+      - SERVICE_HOST_1=lrd.fimes.fi
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - /etc/letsencrypt:/etc/letsencrypt
-      - /etc/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+      - ./etc/letsencrypt:/certs # Certificates volume
+      - ./docker/nginx.conf:/conf/nginx.conf # Nginx configuration volume
+      - ./var/www/html:/var/www/html # Webroot volume for challenges
     networks:
       - app-network
     depends_on:
@@ -56,6 +60,7 @@ services:
     command: php /var/www/artisan queue:work --verbose --tries=3 --timeout=90
     networks:
       - app-network
+    restart: always
 volumes:
   mariadb_data:
     external: true
