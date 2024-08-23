@@ -26,6 +26,10 @@ Also supports Laravel queue and scheduler by default.
 
 Committaa kaikki muutokset pää/dev branchiin ajan tasalle ja kloonaa uusi branch nimellä staging
 
+- ohjeet miten dockeria hallintaa
+- miten mennään containerin bashiin
+- jne
+
 ---------------
 
 # CI/CD Deployment Pipeline Setup
@@ -59,7 +63,7 @@ Follow the official Docker installation instructions for Ubuntu:
     sudo adduser deployuser
     ```
 
-Set a password for `deployuser` when prompted. You can skip the optional information fields by pressing Enter.
+    Set a password for `deployuser` when prompted. You can skip the optional information fields by pressing Enter.
 
 2. Add `deployuser` to the `sudo` group:
 
@@ -76,10 +80,10 @@ Set a password for `deployuser` when prompted. You can skip the optional informa
     sudo visudo
     ```
 
-    Add the following line to the end of the file:
+    Add the following line to the **end** of the file:
 
     ```bash
-    deployuser ALL=(ALL) NOPASSWD
+    deployuser ALL=(ALL) NOPASSWD: ALL
     ```
 
 4. Verify `deployuser` can use `sudo` without a password:
@@ -96,32 +100,45 @@ Set a password for `deployuser` when prompted. You can skip the optional informa
     sudo ls -la /root
     ```
 
-### 3. Setup SSH Access for `deployuser`
+### 3. Add the Private Key to GitHub Secrets
 
-1. Log in as `deployuser` or switch to the `deployuser` account:
+To allow GitHub Actions to access your server securely, you need to add the private SSH key to GitHub Secrets. This private key should match the public key added to the server in the previous step.
 
-    ```bash
-    su - deployuser
-    ```
+1. **Generate an SSH Key Pair** (if you haven't already):
 
-2. Create an `.ssh` directory and set the correct permissions:
+    On your local machine or directly on the server, generate an SSH key pair if you don't have one:
 
     ```bash
-    mkdir -p ~/.ssh &&
-    chmod 700 ~/.ssh
+    ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
     ```
 
-3. Add your public SSH key to `deployuser`'s `authorized_keys`:
+    - When prompted, save the key to a specific file (e.g., `~/.ssh/id_rsa_deploy`).
+    - Leave the passphrase empty unless you have a specific reason to use one.
 
-    If you already have an SSH key pair on your local machine, you can copy the public key to the server. Otherwise, generate a new SSH key pair using `ssh-keygen`.
+2. **Copy the Private Key**:
 
-    Copy the public key to the server:
+    Use the following command to display the contents of the private key file (e.g., `id_rsa_deploy`):
 
     ```bash
-    echo "your-public-ssh-key" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+    cat ~/.ssh/id_rsa_deploy
     ```
 
-    Replace `your-public-ssh-key` with your actual public SSH key content.
+    Copy the entire content of the private key file.
+
+3. **Add the Private Key to GitHub Secrets**:
+
+    - Go to your GitHub repository on the GitHub website.
+    - Click on **Settings** in the repository.
+    - In the left sidebar, click on **Secrets** under the **Security** section.
+    - Click on **New repository secret**.
+    - Name the secret `SSH_PRIVATE_KEY`.
+    - Paste the copied private key into the value field.
+    - Click **Add secret** to save.
+
+4. **Add known hosts key**
+
+    - Run `ssh-keyscan -H <server-ip>` on server
+    - Copy public key and add it to repository Github Secrets
 
 ### 4. Install Docker Compose
 
@@ -135,8 +152,9 @@ Ensure that your firewall allows SSH and any ports your application will use (e.
 
 1. Copy contents of this repo to your actual project repository.
 2. Clone your actual project repository to the deployment server (to the DEPLOY_PATH)
-3. If you have private Github repo check #Private Github repo
+3. If you have private Github repo check #Private Github repo (make sure to use SSH clone)
 4. Setup your .env variables
+5. Run `composer install`
 
 Make sure to add Guthub Secrets to the repo with your actual secrets:
 
@@ -150,55 +168,82 @@ By following this guide, you'll set up a secure and automated CI/CD pipeline for
 
 ## Private GitHub Repository
 
-If you want to use a private GitHub repository directly from your server for CI/CD purposes, follow these steps to configure your server to use a Personal Access Token.
+If you want to use a private GitHub repository directly from your server for CI/CD purposes, you can set up a repository-specific deploy key using SSH. Follow these steps to configure your server.
 
-### 1. Create a Personal Access Token
+### 1. Generate an SSH Key Pair on Your Server
 
-1. Go to GitHub and navigate to **Account Settings**.
-2. In the left sidebar, click on **Developer settings**.
-3. Click on **Personal access tokens** and then **Generate new token**.
-4. Give your token a descriptive name (e.g., `Deployment Token`).
-5. Set an expiration date for the token (optional but recommended for security).
-6. Select the `repo` scope (and any other necessary scopes) to ensure the token has access to private repositories.
-7. Click on **Generate token**.
-8. Copy the generated token. **Note:** You will not be able to see this token again, so save it in a secure place.
-
-### 2. Add the Personal Access Token to the Server
-
-1. **Log in to the server** via SSH using the `deployuser` or another appropriate user:
+1. **Log in to your server** via SSH using the `deployuser` or another appropriate user:
 
     ```bash
     ssh deployuser@your-server-ip
     ```
 
-2. **Configure Git to use the Personal Access Token**:
+2. **Generate a new SSH key pair**:
 
-    Modify the server's Git configuration to use the Personal Access Token automatically:
-
-    ```bash
-    git config --global credential.helper store
-    ```
-
-3. **Clone the repository using the Personal Access Token**:
-
-    Use the following command to clone your GitHub repository using the Personal Access Token. This will save the token in the `git-credentials` file.
+    Run the following command to generate a new SSH key pair. Use a descriptive name for the key, such as `id_rsa_deploy`:
 
     ```bash
-    git clone https://<your-token>@github.com/your-username/your-repo.git
+    ssh-keygen -t rsa -b 4096 -C "deploy key for your-repo" -f ~/.ssh/id_rsa_deploy
     ```
 
-    For example:
+    - Press Enter to accept the default file location.
+    - You can set a passphrase for the key for additional security, but it’s optional. If you set a passphrase, you'll need to provide it every time the key is used.
+
+3. **Copy the public key to the clipboard**:
+
+    Use the following command to display the contents of the public key. You will copy this and add it to GitHub as a deploy key.
 
     ```bash
-    git clone https://ghp_yourtoken1234567890@github.com/your-username/your-repo.git
+    cat ~/.ssh/id_rsa_deploy.pub
     ```
 
-    **Important:** Replace `ghp_yourtoken1234567890` with your actual Personal Access Token and `your-username/your-repo` with your GitHub username and repository name.
+### 2. Add the Deploy Key to Your GitHub Repository
 
-4. **Ensure the Personal Access Token is saved correctly**:
+1. Go to your GitHub repository where you want to set up the deploy key.
+2. Click on **Settings** in the repository.
+3. In the left sidebar, click on **Deploy keys**.
+4. Click on **Add deploy key**.
+5. Provide a title for the key (e.g., `Deploy Key for CI/CD`).
+6. Paste the public key (the contents of `id_rsa_deploy.pub`) into the **Key** field.
+7. Check the box labeled **Allow write access** if you want the server to push changes back to the repository. This is optional; usually, read-only access is sufficient for deployments.
+8. Click **Add key** to save the deploy key.
 
-    Check the `~/.git-credentials` file to ensure the Personal Access Token is stored correctly. The content of the file should look something like this:
+### 3. Configure SSH on Your Server
+
+1. **Ensure SSH is configured to use the deploy key**:
+
+    Create or edit the SSH configuration file (`~/.ssh/config`) to specify that SSH should use this deploy key for connections to GitHub.
+
+    Open the SSH config file:
+
+    ```bash
+    nano ~/.ssh/config
+    ```
+
+    Add the following configuration:
 
     ```plaintext
-    https://ghp_yourtoken1234567890@github.com
+    Host github.com
+      HostName github.com
+      User git
+      IdentityFile ~/.ssh/id_rsa_deploy
+      IdentitiesOnly yes
     ```
+
+    This configuration tells SSH to use the `id_rsa_deploy` key when connecting to `github.com`.
+
+2. **Set the correct permissions for the SSH key and config file**:
+
+    ```bash
+    chmod 600 ~/.ssh/id_rsa_deploy &&
+    chmod 644 ~/.ssh/id_rsa_deploy.pub &&
+    chmod 600 ~/.ssh/config
+    ```
+
+### 4. Test the SSH Connection to GitHub
+
+Run the following command to test that the server can connect to GitHub using the deploy key:
+
+```bash
+ssh -T git@github.com
+```
