@@ -249,3 +249,23 @@ Run the following command to test that the server can connect to GitHub using th
 ```bash
 ssh -T git@github.com
 ```
+
+
+## Troubleshooting
+
+- Create Docker volume for database `sudo docker volume create mariadb_data`
+
+## SSL certificates
+
+Run this one-time command for each domain in use.
+
+```bash
+docker run -it --rm --name certbot \
+    -v ./etc/letsencrypt:/etc/letsencrypt \
+    -v .:/var/www/html \
+    certbot/certbot certonly --webroot \
+    --webroot-path=/var/www/html \
+    -d YOURDOMAIN.COM
+```
+
+COMPOSER

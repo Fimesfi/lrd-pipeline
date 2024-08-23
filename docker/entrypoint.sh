@@ -1,4 +1,5 @@
 #!/bin/bash
+composer install --no-interaction --optimize-autoloader
 
 # Aja tietokantamigraatiot pakotetusti
 php artisan migrate --force
