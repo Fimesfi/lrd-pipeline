@@ -1,3 +1,12 @@
+# TODO:
+
+- Certbot certs and documentation
+- all lrd.fimes.fi -> YOURDOMAIN.COM
+- Laravel projekti pois
+- react projektin lisäys
+- keygenerate vain kerrane
+- db yhteys? toimiiko?
+
 # LRD CI/CD Pipeline
 
 Laravel, React, and Docker production project deployment stack for easy and secure application deployment on each pull request. Also includes a web server proxy.
