@@ -1,0 +1,65 @@
+version: "3.8"
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: ".env"
+    container_name: laravel-www
+    networks:
+      - app-network
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+  db:
+    image: mariadb
+    restart: always
+    container_name: mariadb-master
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_PASSWORD}
+      - MARIADB_DATABASE=${DB_DATABASE}
+    volumes:
+      - mariadb_data:/var/lib/mysql:Z
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  nginx-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile_nginx
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /etc/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+  laravel-queue:
+    build:
+      context: .
+    volumes:
+      - .:/var/www
+    command: php /var/www/artisan queue:work --verbose --tries=3 --timeout=90
+    networks:
+      - app-network
+volumes:
+  mariadb_data:
+    external: true
+    name: mariadb_data
+networks:
+  app-network:
+    driver: bridge
