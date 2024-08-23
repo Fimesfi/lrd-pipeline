@@ -48,6 +48,16 @@ services:
       db:
         condition: service_healthy
     restart: always
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - .:/var/www/html
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - app-network
+    restart: always
   laravel-queue:
     build:
       context: .
