@@ -1,36 +1,20 @@
+# LRD CI/CD Pipeline
+
+Laravel, React, and Docker production project deployment stack for easy and secure application deployment on each pull request. Also includes a web server proxy.
+
 Default deployment stack:
-- Webserver: nginx
+- Webserver: Nginx/Apache2 (uses Nginx as proxy)
 - Backend: Laravel
 - Frontend: React (Vite)
 - Database: MariaDB
+- SSL certs: Certbot
 
-Also supports Laravel queue and scheduler by default.
+Also supports Laravel queue by default.
 
----------------------
-0. setup github secrets:
-- SSH_PRIVATE_KEY
-- SSH_KNOWN_HOSTS
-- SSH_USER
-- SSH_HOST
-- DEPLOY_PATH (/var/www/XXXX)
+### Authors:
 
-1. clone repo to the deployment server final destination
-1.2. check github connection if repo is private!
-2. setup enviromental variables for project (laravel and react)
-
-3. Luo palvelimelle deployuser, jolla on sudo oikeudet. Aja myös sudo visudo komennolla tiedostoon no pass rivi ko. käyttäjälle.  (Dockerin käyttö voi vaatia deploy sh tiedostoon sudottamista)
- 
-4. Palvelimelta aseta SSH-asetukset pubkey only ja luo ssh-keygenillä avain (kvg jos et osaa)
- 
-5. Lisää githubissa secretsiin actionsissa avain SSH_PRIVATE_KEY ja aja palvelimen päässä: ssh-keyscan -H palvelimenip ja lisää komennon palaute avaimella SSH_KNOWN_HOSTS
-
-Committaa kaikki muutokset pää/dev branchiin ajan tasalle ja kloonaa uusi branch nimellä staging
-
-- ohjeet miten dockeria hallintaa
-- miten mennään containerin bashiin
-- jne
-
----------------
+- Eeli Grén (Fimes)
+- Joni Niemelä
 
 # CI/CD Deployment Pipeline Setup
 
@@ -109,13 +93,25 @@ To allow GitHub Actions to access your server securely, you need to add the priv
     On your local machine or directly on the server, generate an SSH key pair if you don't have one:
 
     ```bash
-    ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
+    sudo ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
     ```
 
     - When prompted, save the key to a specific file (e.g., `~/.ssh/id_rsa_deploy`).
     - Leave the passphrase empty unless you have a specific reason to use one.
 
-2. **Copy the Private Key**:
+2. **Authorize the Public Key on the Server**
+
+    ```bash
+    sudo cat ~/.ssh/id_rsa_deploy.pub >> ~/.ssh/authorized_keys
+    ```
+
+    ```bash
+    sudo chmod 700 ~/.ssh &&
+    sudo chmod 600 ~/.ssh/authorized_keys &&
+    sudo chmod 600 ~/.ssh/id_rsa_deploy
+    ```
+
+3. **Copy the Private Key**:
 
     Use the following command to display the contents of the private key file (e.g., `id_rsa_deploy`):
 
@@ -125,9 +121,7 @@ To allow GitHub Actions to access your server securely, you need to add the priv
 
     Copy the entire content of the private key file.
 
-3. 
-
-3. **Add the Private Key to GitHub Secrets**:
+4. **Add the Private Key to GitHub Secrets**:
 
     - Go to your GitHub repository on the GitHub website.
     - Click on **Settings** in the repository.
@@ -137,7 +131,7 @@ To allow GitHub Actions to access your server securely, you need to add the priv
     - Paste the copied private key into the value field.
     - Click **Add secret** to save.
 
-4. **Add known hosts key**
+5. **Add known hosts key**
 
     - Run `ssh-keyscan -H <server-ip>` on server
     - Copy public key and add it to repository Github Secrets
@@ -153,8 +147,9 @@ Ensure that your firewall allows SSH and any ports your application will use (e.
 ### 6. Github Actions CI/CD pipeline
 
 1. Copy contents of this repo to your actual project repository.
+2. Change YOURDOMAIN.COM on every this repo file to your actual domains.
 2. Clone your actual project repository to the deployment server (to the DEPLOY_PATH)
-3. If you have private Github repo check #Private Github repo (make sure to use SSH clone)
+3. If you have private Github repo check "Private GitHub Repository" (make sure to use SSH clone command than http)
 4. Setup your .env variables
 5. Run `composer install`
 
@@ -166,13 +161,34 @@ Make sure to add Guthub Secrets to the repo with your actual secrets:
 - `SSH_HOST`: Your server's hostname or IP address.
 - `DEPLOY_PATH`: The path to your project on the server (/var/www/DEPLOY_PATH).
 
-By following this guide, you'll set up a secure and automated CI/CD pipeline for your Laravel project using Docker and GitHub Actions.
+By following this guide, you'll set up a secure and automated CI/CD pipeline for your LRD stack project using Docker and GitHub Actions.
+
+## SSL certificates
+
+There is two nginx.conf files provided.
+
+Run this one-time command for each domain in use to generate certs after composer is running.
+
+To start composer in command line run `sudo composer up -d --build`
+
+```bash
+sudo docker run -it --rm --name certbot \
+    -v $(pwd)/etc/letsencrypt:/etc/letsencrypt \
+    -v $(pwd)/var/www/html:/var/www/html \
+    certbot/certbot certonly --webroot \
+    --webroot-path=/var/www/html \
+    -d YOURDOMAIN.FI -v
+```
+
+After that you can rename ssl_nginx.conf back to nginx.conf (remeber to check the config) and you are good to go!
 
 ## Private GitHub Repository
 
 If you want to use a private GitHub repository directly from your server for CI/CD purposes, you can set up a repository-specific deploy key using SSH. Follow these steps to configure your server.
 
 ### 1. Generate an SSH Key Pair on Your Server
+
+**IMPORTANT!** If you already created key called "id_rsa_deploy" in previous steps you can use that same key, just skip to the 1.3. step!
 
 1. **Log in to your server** via SSH using the `deployuser` or another appropriate user:
 
@@ -250,22 +266,112 @@ Run the following command to test that the server can connect to GitHub using th
 ssh -T git@github.com
 ```
 
-
-## Troubleshooting
+## Troubleshooting & tips
 
 - Create Docker volume for database `sudo docker volume create mariadb_data`
+- Make sure that ports 80, 443 or 3306 are not in use on same host!
+- If database have a problems make sure that you have configured DB_DATABASE and DB_PASSWORD in .env to actual values!
 
-## SSL certificates
+### Basic Docker Commands
 
-Run this one-time command for each domain in use.
+#### Accessing a Docker Container's Command Line
+
+To access the command line of a running Docker container, use the `docker exec` command. This is useful for troubleshooting, running commands inside the container, or exploring the container's environment.
 
 ```bash
-docker run -it --rm --name certbot \
-    -v ./etc/letsencrypt:/etc/letsencrypt \
-    -v .:/var/www/html \
-    certbot/certbot certonly --webroot \
-    --webroot-path=/var/www/html \
-    -d YOURDOMAIN.COM
+sudo docker exec -it <container_name> /bin/bash
 ```
 
-COMPOSER
+- Replace `<container_name>` with the name or ID of the container you want to access.
+- The `/bin/bash` part specifies that you want to open a Bash shell. If Bash is not available, you can use `/bin/sh`.
+
+Example:
+
+```bash
+sudo docker exec -it laravel-www /bin/bash
+```
+
+This command opens a Bash shell inside the `laravel-www` container.
+
+#### Full Rebuild of Docker Containers
+
+If you need to rebuild the Docker containers from scratch (e.g., after changing dependencies or configuration files), you can use the following commands:
+
+```bash
+sudo docker compose down --rmi all --volumes --remove-orphans
+sudo docker compose up -d --build
+```
+
+- `docker compose down --rmi all --volumes --remove-orphans`: Stops and removes containers, networks, volumes, and images created by `up`.
+  - `--rmi all`: Removes all images used by any service.
+  - `--volumes`: Removes all volumes associated with the containers.
+  - `--remove-orphans`: Removes containers for services not defined in the `docker-compose.yml`.
+
+- `docker compose up -d --build`: Rebuilds and starts the containers in the background.
+  - `-d`: Run containers in the background (detached mode).
+  - `--build`: Build images before starting containers.
+
+#### Viewing Container Logs
+
+To view the logs of a running container, use the `docker logs` command. This is helpful for debugging and monitoring the behavior of your applications.
+
+```bash
+sudo docker logs <container_name>
+```
+
+- Replace `<container_name>` with the name or ID of the container whose logs you want to view.
+
+Example:
+
+```bash
+sudo docker logs laravel-www
+```
+
+- To follow the logs in real-time (like `tail -f`), use the `-f` flag:
+
+  ```bash
+  sudo docker logs -f laravel-www
+  ```
+
+#### Additional Useful Commands
+
+- **List All Running Containers**: To see a list of all currently running containers, use:
+
+  ```bash
+  sudo docker ps
+  ```
+
+- **List All Containers (Including Stopped)**: To list all containers, running or stopped:
+
+  ```bash
+  sudo docker ps -a
+  ```
+
+- **Stop a Running Container**: To stop a specific container:
+
+  ```bash
+  sudo docker stop <container_name>
+  ```
+
+- **Remove a Stopped Container**: To remove a container that is no longer running:
+
+  ```bash
+  sudo docker rm <container_name>
+  ```
+
+- **Remove Unused Images, Containers, Volumes, and Networks**: To clean up resources not associated with a running container, use:
+
+  ```bash
+  sudo docker system prune -a
+  ```
+
+  - `-a`: Removes all unused images, not just dangling ones.
+
+### Summary
+
+- Use `docker exec -it <container_name> /bin/bash` to access a container's shell.
+- Use `docker compose down --rmi all --volumes --remove-orphans` followed by `docker compose up -d --build` for a full rebuild.
+- Use `docker logs <container_name>` to view container logs.
+- Use other commands for managing and cleaning up Docker resources.
+
+These commands will help you efficiently manage your Docker environment, troubleshoot issues, and ensure your containers are running smoothly.
