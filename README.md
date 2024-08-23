@@ -125,6 +125,8 @@ To allow GitHub Actions to access your server securely, you need to add the priv
 
     Copy the entire content of the private key file.
 
+3. 
+
 3. **Add the Private Key to GitHub Secrets**:
 
     - Go to your GitHub repository on the GitHub website.
