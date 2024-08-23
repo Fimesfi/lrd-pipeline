@@ -31,21 +31,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-  reverse-proxy:
-    image: bh42/nginx-reverseproxy-letsencrypt:latest
+  nginx-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile_nginx
     container_name: nginx-proxy
-    environment:
-      - KEYLENGTH=ec-384
-      - EMAIL=your-email@example.com
-      - DHPARAM=4096
-      - SERVICE_HOST_1=lrd.fimes.fi
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./etc/letsencrypt:/certs # Certificates volume
-      - ./docker/nginx.conf:/conf/nginx.conf # Nginx configuration volume
-      - ./var/www/html:/var/www/html # Webroot volume for challenges
+      - /etc/letsencrypt:/etc/letsencrypt
+      - .:/var/www/html
     networks:
       - app-network
     depends_on:

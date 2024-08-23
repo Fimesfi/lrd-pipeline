@@ -271,6 +271,7 @@ ssh -T git@github.com
 - Create Docker volume for database `sudo docker volume create mariadb_data`
 - Make sure that ports 80, 443 or 3306 are not in use on same host!
 - If database have a problems make sure that you have configured DB_DATABASE and DB_PASSWORD in .env to actual values!
+- Create Docker network `sudo docker network create app-network`
 
 ### Basic Docker Commands
 
