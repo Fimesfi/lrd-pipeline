@@ -28,7 +28,7 @@ jobs:
       run: |
         ssh ${{ vars.SSH_USER }}@${{ vars.SSH_HOST }} 'bash -s' << 'EOF'
         cd /var/www/${{ vars.DEPLOY_PATH }} || exit
-        git pull origin staging
+        sudo git pull origin staging
         sudo docker compose down --rmi all
         sudo docker compose pull
         sudo docker compose up -d --build
