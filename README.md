@@ -107,7 +107,7 @@ To allow GitHub Actions to access your server securely, you need to add the priv
     On your local machine or directly on the server, generate an SSH key pair if you don't have one:
 
     ```bash
-    sudo ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
+    ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
     ```
 
     - When prompted, save the key to a specific file (e.g., `~/.ssh/id_rsa_deploy`).
@@ -148,7 +148,7 @@ To allow GitHub Actions to access your server securely, you need to add the priv
 5. **Add known hosts key**
 
     - Run `ssh-keyscan -H <server-ip>` on server
-    - Copy public key and add it to repository Github Secrets
+    - Copy public key and add it to repository Github Secrets `SSH_KNOWN_HOSTS`
 
 ### 4. Install Docker Compose
 
